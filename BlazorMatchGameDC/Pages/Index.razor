@@ -1,5 +1,5 @@
 ﻿@page "/"
-
+@using System.Timers
 <style>
     .container {
         width: 400px;
@@ -14,15 +14,30 @@
 
 <div class="container">
     <div class="row">
-        @foreach (var animal in shuffledAnimals)
+        @for (var animalNumber = 0; animalNumber < shuffledAnimals.Count; animalNumber++)
         {
+            var animal = shuffledAnimals[animalNumber];
+            var uniqueDescription = $"Button #{animalNumber}";
             <div class="col-3">
-                <button type="button" class="btn btn-outline-dark">
+                <button @onclick="@(() => ButtonClick(animal, uniqueDescription))"
+                        type="button" class="btn btn-outline-dark">
                     <h1>@animal</h1>
                 </button>
             </div>
         }
     </div>
+    <div class="row">
+        <h2>Matches found: @matchesFound</h2>
+    </div>
+    <div class="row">
+        <h2>Time: @timeDisplay</h2>
+    </div>
+    @if (bestTime != 9999)
+    { 
+    <div class="row">
+        <h2>Best Time: @bestTime</h2>
+    </div>
+    }
 </div>
 
 @code{
@@ -39,9 +54,17 @@
     };
 
     List<string> shuffledAnimals = new List<string>();
+    int matchesFound = 0;
+    Timer timer;
+    int tenthsOfSecondsElapsed = 0;
+    string timeDisplay;
+    float timeDis;
+    float bestTime = 9999;
 
     protected override void OnInitialized()
     {
+        timer = new Timer(100);
+        timer.Elapsed += Timer_Tick;
         SetUpGame();
     }
 
@@ -51,5 +74,57 @@
         shuffledAnimals = animalEmoji
             .OrderBy(item => random.Next())
             .ToList();
+        matchesFound = 0;
+        tenthsOfSecondsElapsed = 0;
+    }
+
+    string lastAnimalFound = string.Empty;
+    string lastDescription = string.Empty;
+
+    private void ButtonClick(string animal, string animalDescription)
+    {
+        if (lastAnimalFound == string.Empty)
+        {
+            lastAnimalFound = animal;
+            lastDescription = animalDescription;
+            timer.Start();
+        }
+        else if ((lastAnimalFound == animal) && (animalDescription != lastDescription))
+        {
+            lastAnimalFound = string.Empty;
+
+            shuffledAnimals = shuffledAnimals
+                .Select(a => a.Replace(animal, string.Empty))
+                .ToList();
+            matchesFound++;
+            if (matchesFound == shuffledAnimals.Count/2)
+            {
+                timer.Stop();
+                timeDisplay += " - Play Again?";
+                if (timeDis < bestTime)
+                {
+                    bestTime = timeDis;
+                }
+                SetUpGame();
+            }
+        }
+        else
+        {
+            lastAnimalFound = string.Empty;
+        }
+    }
+
+    private void Timer_Tick(Object source, ElapsedEventArgs e)
+    {
+        InvokeAsync(() =>
+        {
+            tenthsOfSecondsElapsed++;
+            timeDis = (tenthsOfSecondsElapsed / 10f);
+            timeDisplay = (tenthsOfSecondsElapsed / 10f)
+                .ToString("0.0s");
+            StateHasChanged();
+
+        });
+
     }
 }
